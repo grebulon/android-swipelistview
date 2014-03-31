@@ -34,6 +34,31 @@ public class BaseSwipeListViewListener implements SwipeListViewListener {
     }
 
     @Override
+    public void onLongClickFrontView(int position) {
+    }
+
+    @Override
+    public void onLongClickBackView(int position) {
+    }
+    
+    @Override
+    public void onScroll(boolean isScrollEnd, int firstVisibleItem, int visibleItemCount, int totalItemCount,
+    					 boolean isFirstItem, boolean isLastItem, int scrollOffset) {
+    }
+
+    @Override
+    public void onTouchDown(float x, float y, int position) {
+    }
+    
+    @Override
+    public void onTouchUp(float x, float y, int position) {
+    }
+    
+    @Override
+    public void onTouchMove(float x, float y, int position) {
+    }
+
+    @Override
     public void onDismiss(int[] reverseSortedPositions) {
     }
 

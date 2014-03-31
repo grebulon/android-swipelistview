@@ -116,6 +116,8 @@ public class SwipeListView extends ListView {
     int swipeFrontView = 0;
     int swipeBackView = 0;
 
+	private boolean enableEvents = true;
+
     /**
      * Internal listener for common swipe events
      */
@@ -167,6 +169,7 @@ public class SwipeListView extends ListView {
         int swipeMode = SWIPE_MODE_BOTH;
         boolean swipeOpenOnLongPress = true;
         boolean swipeCloseAllItemsWhenMoveList = true;
+        boolean swipeOnlyOneOpenItem = false;
         long swipeAnimationTime = 0;
         float swipeOffsetLeft = 0;
         float swipeOffsetRight = 0;
@@ -213,12 +216,21 @@ public class SwipeListView extends ListView {
         touchListener.setSwipeActionRight(swipeActionRight);
         touchListener.setSwipeMode(swipeMode);
         touchListener.setSwipeClosesAllItemsWhenListMoves(swipeCloseAllItemsWhenMoveList);
+        touchListener.setSwipeOnlyOneOpenItem(swipeOnlyOneOpenItem);
         touchListener.setSwipeOpenOnLongPress(swipeOpenOnLongPress);
         touchListener.setSwipeDrawableChecked(swipeDrawableChecked);
         touchListener.setSwipeDrawableUnchecked(swipeDrawableUnchecked);
         setOnTouchListener(touchListener);
         setOnScrollListener(touchListener.makeScrollListener());
     }
+
+	public boolean getEnableEvents() {
+		return enableEvents;
+	}
+
+	public void setEnableEvents(boolean value) {
+		enableEvents = value;
+	}
 
     /**
      * Recycle cell. This method should be called from getView in Adapter when use SWIPE_ACTION_CHOICE
@@ -399,6 +411,39 @@ public class SwipeListView extends ListView {
         }
     }
 
+    protected void onLongClickFrontView(int position) {
+        if (swipeListViewListener != null && position != ListView.INVALID_POSITION) {
+            swipeListViewListener.onLongClickFrontView(position);
+        }
+    }
+
+    protected void onLongClickBackView(int position) {
+        if (swipeListViewListener != null && position != ListView.INVALID_POSITION) {
+            swipeListViewListener.onLongClickBackView(position);
+        }
+    }
+    
+    protected void onScroll(boolean isScrollEnd, int firstVisibleItem, int visibleItemCount, int totalItemCount,
+    						boolean isFirstItem, boolean isLastItem, int scrollOffset) {
+        if (swipeListViewListener != null) {
+            swipeListViewListener.onScroll(isScrollEnd, firstVisibleItem, visibleItemCount, totalItemCount,
+            								isFirstItem, isLastItem, scrollOffset);
+        }
+    }
+
+    public void onTouchDown(float x, float y, int position) {
+    	if (swipeListViewListener != null)
+    	    swipeListViewListener.onTouchDown(x, y, position);
+    }
+    public void onTouchUp(float x, float y, int position) {
+    	if (swipeListViewListener != null)
+    	    swipeListViewListener.onTouchUp(x, y, position);
+    }
+    public void onTouchMove(float x, float y, int position) {
+    	if (swipeListViewListener != null)
+    	    swipeListViewListener.onTouchMove(x, y, position);
+    }
+
     /**
      * Notifies onOpened
      *
@@ -542,6 +587,10 @@ public class SwipeListView extends ListView {
         touchListener.setSwipeClosesAllItemsWhenListMoves(swipeCloseAllItemsWhenMoveList);
     }
 
+    public void setSwipeOnlyOneOpenItem(boolean swipeOnlyOneOpenItem) {
+    	touchListener.setSwipeOnlyOneOpenItem(swipeOnlyOneOpenItem);
+    }
+
     /**
      * Sets if the user can open an item with long pressing on cell
      *
@@ -679,4 +728,10 @@ public class SwipeListView extends ListView {
         touchListener.closeOpenedItems();
     }
 
+    /**
+     * Close all opened items except the item in the given position
+     */
+    public void closeOpenedItemsExcept(int position) {
+    	touchListener.closeOpenedItemsExcept(position);
+    }
 }

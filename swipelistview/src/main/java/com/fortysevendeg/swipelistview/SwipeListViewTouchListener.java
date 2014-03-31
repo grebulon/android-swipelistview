@@ -28,6 +28,7 @@ import android.util.Log;
 import android.view.*;
 import android.widget.AbsListView;
 import android.widget.ListView;
+import android.widget.AbsListView.OnScrollListener;
 
 import com.nineoldandroids.animation.Animator;
 import com.nineoldandroids.animation.AnimatorListenerAdapter;
@@ -52,6 +53,8 @@ public class SwipeListViewTouchListener implements View.OnTouchListener {
     private int swipeMode = SwipeListView.SWIPE_MODE_BOTH;
     private boolean swipeOpenOnLongPress = true;
     private boolean swipeClosesAllItemsWhenListMoves = true;
+    private boolean swipeOnlyOneOpenItem = false;
+    private int hadLongClickOnItem = ListView.INVALID_POSITION;
 
     private int swipeFrontView = 0;
     private int swipeBackView = 0;
@@ -138,18 +141,27 @@ public class SwipeListViewTouchListener implements View.OnTouchListener {
         frontView.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                swipeListView.onClickFrontView(downPosition);
+            	if (!swipeListView.getEnableEvents())
+            		return;
+            	// Don't send a click event when removing the finger AFTER a long click event already happened
+            	if (hadLongClickOnItem != downPosition)
+            		swipeListView.onClickFrontView(downPosition);
             }
         });
-        if (swipeOpenOnLongPress) {
-            frontView.setOnLongClickListener(new View.OnLongClickListener() {
-                @Override
-                public boolean onLongClick(View v) {
-                    openAnimate(downPosition);
-                    return false;
-                }
-            });
-        }
+        frontView.setOnLongClickListener(new View.OnLongClickListener() {
+			@Override
+			public boolean onLongClick(View v) {
+            	if (!swipeListView.getEnableEvents())
+            		return false;
+				if (swipeOpenOnLongPress)
+					openAnimate(downPosition);
+				if (!listViewMoving) {
+	                hadLongClickOnItem = downPosition;
+	                swipeListView.onLongClickFrontView(downPosition);
+				}
+				return false;
+			}
+		});
     }
 
     /**
@@ -162,9 +174,25 @@ public class SwipeListViewTouchListener implements View.OnTouchListener {
         backView.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                swipeListView.onClickBackView(downPosition);
+            	if (!swipeListView.getEnableEvents())
+            		return;
+            	// Don't send a click event when removing the finger AFTER a long click event already happened
+            	if (hadLongClickOnItem != downPosition)
+                    swipeListView.onClickBackView(downPosition);
             }
         });
+        backView.setOnLongClickListener(new View.OnLongClickListener() {
+			@Override
+			public boolean onLongClick(View v) {
+            	if (!swipeListView.getEnableEvents())
+            		return false;
+				if (!listViewMoving) {
+					hadLongClickOnItem = downPosition;
+	                swipeListView.onLongClickBackView(downPosition);
+				}
+				return false;
+			}
+		});
     }
 
     /**
@@ -212,6 +240,10 @@ public class SwipeListViewTouchListener implements View.OnTouchListener {
      */
     public void setSwipeClosesAllItemsWhenListMoves(boolean swipeClosesAllItemsWhenListMoves) {
         this.swipeClosesAllItemsWhenListMoves = swipeClosesAllItemsWhenListMoves;
+    }
+
+    public void setSwipeOnlyOneOpenItem(boolean swipeOnlyOneOpenItem) {
+        this.swipeOnlyOneOpenItem = swipeOnlyOneOpenItem;
     }
 
     /**
@@ -581,6 +613,8 @@ public class SwipeListViewTouchListener implements View.OnTouchListener {
                             if (aux) {
                                 swipeListView.onOpened(position, swapRight);
                                 openedRight.set(position, swapRight);
+                                if (swipeOnlyOneOpenItem)
+                                    closeOpenedItemsExcept(position);
                             } else {
                                 swipeListView.onClosed(position, openedRight.get(position));
                             }
@@ -636,6 +670,7 @@ public class SwipeListViewTouchListener implements View.OnTouchListener {
                 if (scrollState != AbsListView.OnScrollListener.SCROLL_STATE_FLING && scrollState != SCROLL_STATE_TOUCH_SCROLL) {
                     listViewMoving = false;
                     downPosition = ListView.INVALID_POSITION;
+                    hadLongClickOnItem = ListView.INVALID_POSITION;
                     swipeListView.resetScrolling();
                     new Handler().postDelayed(new Runnable() {
                         public void run() {
@@ -643,12 +678,25 @@ public class SwipeListViewTouchListener implements View.OnTouchListener {
                         }
                     }, 500);
                 }
+
+                if (scrollState == SCROLL_STATE_IDLE) {
+                	int first = absListView.getFirstVisiblePosition();
+                	int last = absListView.getLastVisiblePosition();
+                	int count = absListView.getCount();
+                	int visibleCount = 0;
+                	int scrollOffset = 0;
+                	if (count != 0) {
+                		visibleCount = (last >= first ? last - first + 1 : 0);
+                		scrollOffset = first * swipeListView.getDividerHeight() - absListView.getChildAt(0).getTop();
+                	}
+                	swipeListView.onScroll(true, first, visibleCount, count, isFirstItem, isLastItem, scrollOffset);
+                }
             }
 
             @Override
             public void onScroll(AbsListView view, int firstVisibleItem, int visibleItemCount, int totalItemCount) {
                 if (isFirstItem) {
-                    boolean onSecondItemList = firstVisibleItem == 1;
+                    boolean onSecondItemList = firstVisibleItem > 0; // after setData, this can jump
                     if (onSecondItemList) {
                         isFirstItem = false;
                     }
@@ -660,7 +708,7 @@ public class SwipeListViewTouchListener implements View.OnTouchListener {
                     }
                 }
                 if (isLastItem) {
-                    boolean onBeforeLastItemList = firstVisibleItem + visibleItemCount == totalItemCount - 1;
+                    boolean onBeforeLastItemList = firstVisibleItem + visibleItemCount < totalItemCount; //after setData, this can jump
                     if (onBeforeLastItemList) {
                         isLastItem = false;
                     }
@@ -671,6 +719,11 @@ public class SwipeListViewTouchListener implements View.OnTouchListener {
                         swipeListView.onLastListItem();
                     }
                 }
+        		int scrollOffset = 0;
+            	if (totalItemCount != 0) {
+            		scrollOffset = firstVisibleItem * swipeListView.getDividerHeight() - view.getChildAt(0).getTop();
+            	}
+                swipeListView.onScroll(false, firstVisibleItem, visibleItemCount, totalItemCount, isFirstItem, isLastItem, scrollOffset);
             }
         };
     }
@@ -691,6 +744,18 @@ public class SwipeListViewTouchListener implements View.OnTouchListener {
 
     }
 
+    void closeOpenedItemsExcept(int position) {
+        if (opened != null) {
+            int start = swipeListView.getFirstVisiblePosition();
+            int end = swipeListView.getLastVisiblePosition();
+            for (int i = start; i <= end; i++) {
+                if (i != position && opened.get(i)) {
+                    closeAnimate(swipeListView.getChildAt(i - start).findViewById(swipeFrontView), i);
+                }
+            }
+        }
+    }
+
     /**
      * @see View.OnTouchListener#onTouch(android.view.View, android.view.MotionEvent)
      */
@@ -706,11 +771,16 @@ public class SwipeListViewTouchListener implements View.OnTouchListener {
 
         switch (MotionEventCompat.getActionMasked(motionEvent)) {
             case MotionEvent.ACTION_DOWN: {
+                swipeListView.onTouchDown(motionEvent.getRawX(), motionEvent.getRawY(), downPosition);
+
+                hadLongClickOnItem = ListView.INVALID_POSITION;
+
                 if (paused && downPosition != ListView.INVALID_POSITION) {
                     return false;
                 }
                 swipeCurrentAction = SwipeListView.SWIPE_ACTION_NONE;
 
+                if (swipeListView.getEnableEvents()) {
                 int childCount = swipeListView.getChildCount();
                 int[] listViewCoords = new int[2];
                 swipeListView.getLocationOnScreen(listViewCoords);
@@ -744,11 +814,14 @@ public class SwipeListViewTouchListener implements View.OnTouchListener {
                         break;
                     }
                 }
+                }
                 view.onTouchEvent(motionEvent);
                 return true;
             }
 
             case MotionEvent.ACTION_UP: {
+                swipeListView.onTouchUp(motionEvent.getRawX(), motionEvent.getRawY(), downPosition);
+
                 if (velocityTracker == null || !swiping || downPosition == ListView.INVALID_POSITION) {
                     break;
                 }
@@ -802,6 +875,8 @@ public class SwipeListViewTouchListener implements View.OnTouchListener {
             }
 
             case MotionEvent.ACTION_MOVE: {
+                swipeListView.onTouchMove(motionEvent.getRawX(), motionEvent.getRawY(), downPosition);
+
                 if (velocityTracker == null || paused || downPosition == ListView.INVALID_POSITION) {
                     break;
                 }

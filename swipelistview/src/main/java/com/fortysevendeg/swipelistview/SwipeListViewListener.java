@@ -77,6 +77,55 @@ public interface SwipeListViewListener {
     void onClickBackView(int position);
 
     /**
+     * Called when user long-clicks on the front view
+     * @param position list item
+     */
+    void onLongClickFrontView(int position);
+
+    /**
+     * Called when user long-clicks on the back view
+     * @param position list item
+     */
+    void onLongClickBackView(int position);
+
+    /**
+     * Called when the list is scrolled
+     * @param isScrollEnd false while the list is scrolling, true if scrolling has stopped
+     * @param firstVisibleItem position of the first visible item currently in the list
+	 * @param visibleItemCount number of visible items in the list
+	 * @param totalItemCount total number of items in the list (both visible and not)
+     * @param isFirstItem true if the first item is visible (scroll near the top of the list)
+     * @param isLastItem true if the last item is visible (scroll near to end of the list)
+     * @param scrollOffset offset of the first visible item from the top of the list view, currentTopOffset=firstVisibleItem*heightOfItem+scrollOffset
+     */
+    void onScroll(boolean isScrollEnd, int firstVisibleItem, int visibleItemCount, int totalItemCount,
+    			  boolean isFirstItem, boolean isLastItem, int scrollOffset);
+
+    /**
+     * Called when user touches down on a list view item
+     * @param x raw x coordinate of the press (screen coordinates)
+     * @param y raw y coordinate of the press (screen coordinates)
+     * @param position list item
+     */
+    public void onTouchDown(float x, float y, int position);
+
+    /**
+     * Called when user lifts his touch from a list view item
+     * @param x raw x coordinate of the press (screen coordinates)
+     * @param y raw y coordinate of the press (screen coordinates)
+     * @param position list item where the user first touched (down position)
+     */
+    public void onTouchUp(float x, float y, int position);
+
+    /**
+     * Called when user drags on a list view
+     * @param x raw x coordinate of the press (screen coordinates)
+     * @param y raw y coordinate of the press (screen coordinates)
+     * @param position list item where the user first touched (down position)
+     */
+    public void onTouchMove(float x, float y, int position);
+
+    /**
      * Called when user dismisses items
      * @param reverseSortedPositions Items dismissed
      */
@@ -116,5 +165,4 @@ public interface SwipeListViewListener {
      * User is in last item of list
      */
     void onLastListItem();
-
 }
